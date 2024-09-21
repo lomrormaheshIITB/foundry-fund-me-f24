@@ -11,6 +11,7 @@ contract FundMeTest is Test {
     address USER = makeAddr("user"); // create a address
     uint256 constant SEND_VALUE = 0.1 ether; // 1e15 = $2
     uint256 constant STARTING_BALANCE = 7 ether;
+    uint256 constant GAS_PRICE = 1;
 
     function setUp() external {
         // SetUp function is called before every test automatically
@@ -20,7 +21,7 @@ contract FundMeTest is Test {
         DeployFundMe deployFundMe = new DeployFundMe();
         fundMe = deployFundMe.run();
         vm.deal(USER, STARTING_BALANCE);
-        console.log("PRANK USER:", USER);
+        // console.log("PRANK USER:", USER);
     }
 
     function testDemo() public pure {
@@ -37,7 +38,7 @@ contract FundMeTest is Test {
         console.log("fundMe:", address(fundMe));
         // us -> FundMeTest (address(this)) -> DeployFundMe (foundry's default address is used to create the fundMe contract) -> fundMe
         // i_owner is msg.sender, who is msg.sender ? msg.sender is foundry's default address
-        assertEq(fundMe.i_owner(), msg.sender);
+        assertEq(fundMe.getOwner(), msg.sender);
         assertEq(fundMe.myCount(), 0);
     }
 
@@ -78,22 +79,111 @@ contract FundMeTest is Test {
         assertEq(amountFunded, SEND_VALUE);
     }
 
-    function testAddsFundersToArrayOfFunders() public {
-        console.log("Hello from testAddsFundersToArrayOfFunders!!");
+    modifier funded() {
         vm.prank(USER);
         fundMe.fund{value: SEND_VALUE}();
+        _;
+    }
+
+    function testAddsFundersToArrayOfFunders() public funded {
+        console.log("Hello from testAddsFundersToArrayOfFunders!!");
+        // vm.prank(USER);
+        // fundMe.fund{value: SEND_VALUE}();
         address funder = fundMe.getFunder(0);
         assertEq(funder, USER);
     }
 
-    function testOnlyOwnerCanWithdraw() public {
+    function testOnlyOwnerCanWithdraw() public funded {
         console.log("Hello from testOnlyOwnerCanWithdraw!!");
-        // The USER is not owner, owner is msg.sender
-        vm.prank(USER);
-        fundMe.fund{value: SEND_VALUE}();
-
+        // The USER is not owner, owner is msg.sender (msg.sender is foundry's default address due to use of vm.startBroadcast() )
+        // vm.prank(USER);
+        // fundMe.fund{value: SEND_VALUE}();
         vm.expectRevert();
         vm.prank(USER);
         fundMe.withdraw();
+    }
+
+    function testWithDrawWithASingleFunder() public funded {
+        // Arrange
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        // Act
+        // uint256 gasStart = gasleft();
+        // vm.txGasPrice(GAS_PRICE);
+        vm.prank(fundMe.getOwner());
+        fundMe.withdraw();
+
+        // uint256 gasEnd = gasleft();
+        // uint256 gasUsed = (gasStart - gasEnd) * tx.gasprice;
+        // console.log("Gas Used:", gasUsed);
+        // console.log("gasStart:", gasStart);
+        // console.log("gasEnd:", gasEnd);
+        // console.log("gasprice:", tx.gasprice);
+
+        // Assert
+        uint256 endingOwnerBalance = fundMe.getOwner().balance;
+        uint256 endingFundMeBalance = address(fundMe).balance;
+        assertEq(endingFundMeBalance, 0);
+        assertEq(
+            endingOwnerBalance,
+            startingOwnerBalance + startingFundMeBalance
+        );
+    }
+
+    function testWithdrawWithMultipleFunders() public funded {
+        // Arrange
+        uint160 numberOfFunders = 10;
+        uint160 startingFunderIndex = 1;
+        for (uint160 i = startingFunderIndex; i <= numberOfFunders; i++) {
+            // vm.prank a new address
+            // vm.deal a new address
+            hoax(address(i), SEND_VALUE);
+            // fund the fundMe
+            fundMe.fund{value: SEND_VALUE}();
+        }
+
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        // Act
+        vm.startPrank(fundMe.getOwner());
+        fundMe.withdraw();
+        vm.stopPrank();
+
+        // Assert
+        assertEq(
+            fundMe.getOwner().balance,
+            startingOwnerBalance + startingFundMeBalance
+        );
+        assertEq(address(fundMe).balance, 0);
+    }
+
+    function testWithdrawWithMultipleFundersCheaper() public funded {
+        // Arrange
+        uint160 numberOfFunders = 10;
+        uint160 startingFunderIndex = 1;
+        for (uint160 i = startingFunderIndex; i <= numberOfFunders; i++) {
+            // vm.prank a new address
+            // vm.deal a new address
+            hoax(address(i), SEND_VALUE);
+            // fund the fundMe
+            fundMe.fund{value: SEND_VALUE}();
+        }
+
+        uint256 startingOwnerBalance = fundMe.getOwner().balance;
+        uint256 startingFundMeBalance = address(fundMe).balance;
+
+        // Act
+        vm.startPrank(fundMe.getOwner());
+        fundMe.cheaperWithdraw();
+        vm.stopPrank();
+
+        // Assert
+        assertEq(
+            fundMe.getOwner().balance,
+            startingOwnerBalance + startingFundMeBalance
+        );
+        assertEq(address(fundMe).balance, 0);
     }
 }
