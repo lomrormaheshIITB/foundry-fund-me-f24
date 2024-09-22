@@ -107,6 +107,7 @@ $ forge clean
 -   **Deployment**: deploy using script (modular deployment)
 -   **Testing**: test the smart contract (modular testing)
 -   **Prank**: prank user for testing (only supported in foundry)
+-   **Integration test**:
 
 
 ### Tools
@@ -121,4 +122,4 @@ $ forge clean
 
 ### ToDo List
 -   **How to sign a Transaction**
--   
+-   **Programatic Verification**: Verification of Contract on Etherscan
