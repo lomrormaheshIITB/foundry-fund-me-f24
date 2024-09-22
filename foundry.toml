@@ -5,5 +5,7 @@ libs = ["lib"]
 remappings = [
     "@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/",
 ]
+ffi = true
+# sender = '0x9dF0C6b0066D5317aA5b38B36850548DaCCa6B4e' # modify default address of foundry
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
